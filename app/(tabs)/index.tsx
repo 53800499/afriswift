@@ -61,11 +61,12 @@ const TRANSACTIONS = [
 ];
 
 export default function HomeScreen() {
-  const { token } = useUser();
+  const { user, token } = useUser();
   const [tab, setTab] = useState("mobile");
   const [showMobileModal, setShowMobileModal] = useState(false);
   const [showBankModal, setShowBankModal] = useState(false);
   const router = useRouter();
+  console.log("user", user);
 
   // États pour le formulaire mobile money
   const [mobileForm, setMobileForm] = useState({
@@ -116,8 +117,7 @@ export default function HomeScreen() {
         token
       );
 
-      console.log(result);
-      if (result.success) {
+      if (result) {
         Alert.alert("Succès", "Compte bancaire ajouté avec succès");
         setShowBankModal(false);
         setBankForm({
