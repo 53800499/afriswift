@@ -1,8 +1,10 @@
 import { Colors } from "@/constants/Colors";
+import { authService } from "@/core/services/authService";
 import { useColorScheme } from "@/hooks/useColorScheme";
-import { useRouter } from 'expo-router';
+import { useRouter } from "expo-router";
 import React, { useRef, useState } from "react";
 import {
+  Alert,
   Image,
   Keyboard,
   ScrollView,
@@ -10,7 +12,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 
 const AfricaLogo = () => (
@@ -46,6 +48,7 @@ export default function RegisterScreen() {
   const [prenom, setPrenom] = useState("");
   const [nom, setNom] = useState("");
   const [email, setEmail] = useState("");
+  const [telephone, setTelephone] = useState("");
   const [country, setCountry] = useState(COUNTRIES[0]);
   const [countrySearch, setCountrySearch] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -56,6 +59,7 @@ export default function RegisterScreen() {
   const [acceptCGU, setAcceptCGU] = useState(false);
   const [acceptPrivacy, setAcceptPrivacy] = useState(false);
   const [showCountryList, setShowCountryList] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const countryInputRef = useRef<View>(null);
   const [dropdownTop, setDropdownTop] = useState(0);
@@ -63,14 +67,95 @@ export default function RegisterScreen() {
   // Calculer la position du dropdown
   const showDropdown = () => {
     if (countryInputRef.current) {
-      countryInputRef.current.measure((fx: any, fy: any, width: any, height: any, px: any, py: any) => {
-        setDropdownTop(py + height);
-        setShowCountryList(true);
-      });
+      countryInputRef.current.measure(
+        (fx: any, fy: any, width: any, height: any, px: any, py: any) => {
+          setDropdownTop(py + height);
+          setShowCountryList(true);
+        }
+      );
     } else {
       setShowCountryList(true);
     }
     Keyboard.dismiss();
+  };
+
+  // Fonction d'inscription
+  const handleRegister = async () => {
+    // Validation des champs
+    if (
+      !prenom.trim() ||
+      !nom.trim() ||
+      !email.trim() ||
+      !telephone.trim() ||
+      !password.trim()
+    ) {
+      Alert.alert("Erreur", "Veuillez remplir tous les champs obligatoires");
+      return;
+    }
+
+    if (!authService.validateEmail(email)) {
+      Alert.alert("Erreur", "Veuillez entrer une adresse email valide");
+      return;
+    }
+
+    if (!authService.validatePhone(telephone)) {
+      Alert.alert(
+        "Erreur",
+        "Veuillez entrer un numéro de téléphone valide (format: +22945454545)"
+      );
+      return;
+    }
+
+    if (!authService.validatePassword(password)) {
+      Alert.alert(
+        "Erreur",
+        "Le mot de passe doit contenir au moins 6 caractères"
+      );
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert("Erreur", "Les mots de passe ne correspondent pas");
+      return;
+    }
+
+    if (!acceptCGU || !acceptPrivacy) {
+      Alert.alert(
+        "Erreur",
+        "Veuillez accepter les conditions d'utilisation et la politique de confidentialité"
+      );
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const userData = {
+        firstName: nom.trim(),
+        lastName: prenom.trim(),
+        email: email.trim(),
+        telephone: telephone.trim(),
+        pays: country.name,
+        motDePasse: password
+      };
+
+      const response = await authService.register(userData);
+
+      if (response.success) {
+        Alert.alert("Succès", response.message, [
+          {
+            text: "OK",
+            onPress: () => router.push("/(auth)/login")
+          }
+        ]);
+      } else {
+        Alert.alert("Erreur", response.message);
+      }
+    } catch (error) {
+      Alert.alert("Erreur", "Une erreur est survenue lors de l'inscription");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -105,7 +190,7 @@ export default function RegisterScreen() {
         <Text style={styles.inputIcon}>✉️</Text>
         <TextInput
           style={styles.input}
-          placeholder="Email ou numéro de téléphone"
+          placeholder="Email"
           placeholderTextColor="#A0A0A0"
           value={email}
           onChangeText={setEmail}
@@ -113,13 +198,25 @@ export default function RegisterScreen() {
           autoCapitalize="none"
         />
       </View>
+      <View style={styles.inputWrapper}>
+        <Text style={styles.inputIcon}>📱</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Numéro de téléphone (ex: +22945454545)"
+          placeholderTextColor="#A0A0A0"
+          value={telephone}
+          onChangeText={setTelephone}
+          keyboardType="phone-pad"
+          autoCapitalize="none"
+        />
+      </View>
       {/* Sélecteur de pays amélioré */}
       <View ref={countryInputRef} collapsable={false}>
-        <TouchableOpacity
-          style={styles.inputWrapper}
-          onPress={showDropdown}>
+        <TouchableOpacity style={styles.inputWrapper} onPress={showDropdown}>
           <Text style={styles.inputIcon}>📍</Text>
-          <Text style={[styles.input, { color: "#222", flex: 1 }]}>{country.flag} {country.name}</Text>
+          <Text style={[styles.input, { color: "#222", flex: 1 }]}>
+            {country.flag} {country.name}
+          </Text>
           <Text style={styles.inputIcon}>{showCountryList ? "▲" : "▼"}</Text>
         </TouchableOpacity>
       </View>
@@ -131,16 +228,27 @@ export default function RegisterScreen() {
             activeOpacity={1}
             onPress={() => setShowCountryList(false)}
           />
-          <View style={[styles.dropdown, { top: dropdownTop, left: 20, right: 20, zIndex: 100 }]}>
+          <View
+            style={[
+              styles.dropdown,
+              { top: dropdownTop, left: 20, right: 20, zIndex: 100 }
+            ]}>
             <TextInput
-              style={{ padding: 10, borderBottomWidth: 1, borderColor: '#eee', fontSize: 15 }}
+              style={{
+                padding: 10,
+                borderBottomWidth: 1,
+                borderColor: "#eee",
+                fontSize: 15
+              }}
               placeholder="Rechercher un pays..."
               value={countrySearch}
               onChangeText={setCountrySearch}
               autoFocus
             />
             <ScrollView style={{ maxHeight: 200 }}>
-              {COUNTRIES.filter(c => c.name.toLowerCase().includes(countrySearch.toLowerCase())).map((c) => (
+              {COUNTRIES.filter((c) =>
+                c.name.toLowerCase().includes(countrySearch.toLowerCase())
+              ).map((c) => (
                 <TouchableOpacity
                   key={c.code}
                   onPress={() => {
@@ -148,7 +256,9 @@ export default function RegisterScreen() {
                     setShowCountryList(false);
                     setCountrySearch("");
                   }}>
-                  <Text style={styles.countryItem}>{c.flag} {c.name}</Text>
+                  <Text style={styles.countryItem}>
+                    {c.flag} {c.name}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -242,9 +352,12 @@ export default function RegisterScreen() {
         </Text>
       </View>
       <TouchableOpacity
-        style={styles.registerBtn}
-        onPress={() => router.push("/(tabs)")}>
-        <Text style={styles.registerBtnText}>S’inscrire</Text>
+        style={[styles.registerBtn, isLoading && styles.registerBtnDisabled]}
+        onPress={handleRegister}
+        disabled={isLoading}>
+        <Text style={styles.registerBtnText}>
+          {isLoading ? "Inscription en cours..." : "S’inscrire"}
+        </Text>
       </TouchableOpacity>
       <View style={styles.signupContainer}>
         <Text style={styles.signupText}>Vous avez déjà un compte ? </Text>
@@ -391,6 +504,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 17
   },
+  registerBtnDisabled: {
+    opacity: 0.6
+  },
   signupContainer: {
     flexDirection: "row",
     justifyContent: "center",
@@ -407,17 +523,17 @@ const styles = StyleSheet.create({
     fontSize: 15
   },
   dropdown: {
-    position: 'absolute',
-    backgroundColor: '#fff',
+    position: "absolute",
+    backgroundColor: "#fff",
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    shadowColor: '#000',
+    borderColor: "#E0E0E0",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 5,
     padding: 0,
-    maxHeight: 250,
+    maxHeight: 250
   }
 });

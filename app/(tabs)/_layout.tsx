@@ -54,9 +54,9 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="scanne"
+        name="history"
         options={{
-          title: "Scanner",
+          title: "Historique",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? "qr-code" : "qr-code-outline"}
@@ -73,21 +73,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? "person" : "person-outline"}
-              size={26}
-              color={color}
-            />
-          )
-        }}
-      />
-      <Tabs.Screen
-        name="plus"
-        options={{
-          title: "Plus",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={
-                focused ? "ellipsis-horizontal" : "ellipsis-horizontal-outline"
-              }
               size={26}
               color={color}
             />

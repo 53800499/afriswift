@@ -1,15 +1,18 @@
 import { Colors } from "@/constants/Colors";
+import { authService } from "@/core/services/authService";
 import { useColorScheme } from "@/hooks/useColorScheme";
-import { useRouter } from 'expo-router';
+import { useUser } from "@/hooks/useUser";
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from "react-native";
 
 // Utilisation d'une image PNG pour le logo Afrique
@@ -28,7 +31,60 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { setUser, setToken } = useUser();
+
+  // Fonction de connexion
+  const handleLogin = async () => {
+    // Validation des champs
+    if (!email.trim() || !password.trim()) {
+      Alert.alert("Erreur", "Veuillez remplir tous les champs");
+      return;
+    }
+
+    if (!authService.validateEmail(email)) {
+      Alert.alert("Erreur", "Veuillez entrer une adresse email valide");
+      return;
+    }
+
+    if (!authService.validatePassword(password)) {
+      Alert.alert(
+        "Erreur",
+        "Le mot de passe doit contenir au moins 6 caractères"
+      );
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const loginData = {
+        email: email.trim(),
+        motDePasse: password
+      };
+
+      const response = await authService.login(loginData);
+      if (response.success) {
+        // Stocker l'utilisateur et le token dans le contexte global
+        setUser(response.data?.utilisateur || { email: email.trim() });
+        setToken(response.token || "");
+
+        Alert.alert("Succès", response.message, [
+          {
+            text: "OK",
+            onPress: () => router.push("/(tabs)")
+          }
+        ]);
+      } else {
+        Alert.alert("Erreur", response.message);
+      }
+    } catch (error) {
+      Alert.alert("Erreur", "Une erreur est survenue lors de la connexion");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     // ScrollView pour permettre le défilement sur petits écrans
@@ -64,7 +120,7 @@ export default function LoginScreen() {
           <Text style={styles.inputIcon}>✉️</Text>
           <TextInput
             style={styles.input}
-            placeholder="Email ou numéro de téléphone"
+            placeholder="Email"
             placeholderTextColor="#A0A0A0"
             value={email}
             onChangeText={setEmail}
@@ -94,9 +150,12 @@ export default function LoginScreen() {
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={styles.loginBtn}
-        onPress={() => router.push("/(tabs)")}>
-        <Text style={styles.loginBtnText}>Se connecter</Text>
+        style={[styles.loginBtn, isLoading && styles.loginBtnDisabled]}
+        onPress={handleLogin}
+        disabled={isLoading}>
+        <Text style={styles.loginBtnText}>
+          {isLoading ? "Connexion..." : "Se connecter"}
+        </Text>
       </TouchableOpacity>
 
       <View style={styles.signupContainer}>
@@ -222,6 +281,9 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "700",
     fontSize: 17
+  },
+  loginBtnDisabled: {
+    opacity: 0.6
   },
   signupContainer: {
     flexDirection: "row",

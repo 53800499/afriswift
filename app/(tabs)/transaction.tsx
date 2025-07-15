@@ -71,7 +71,7 @@ export default function EnvoyerScreen() {
             <TouchableOpacity
               style={[
                 styles.methodBtn,
-                methode === "bank" && styles.methodBtnInactive
+                methode === "bank" && styles.methodBtnActive
               ]}
               onPress={() => setMethode("bank")}>
               <Text

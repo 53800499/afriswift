@@ -145,7 +145,7 @@ export default function Header({
             )}
             <TouchableOpacity
               style={styles.iconBackground}
-              onPress={() => router.push("/(tabs)/historiques")}>
+              onPress={() => router.push("/(tabs)/history")}>
               <Ionicons
                 name="notifications-outline"
                 size={20}

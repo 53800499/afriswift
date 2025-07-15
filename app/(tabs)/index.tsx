@@ -1,17 +1,22 @@
 /** @format */
 
 import Header from "@/components/Header";
+import { BankAccountData, bankService } from "@/core/services/bankService";
 import { FontAwesome5, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
+  Alert,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View
 } from "react-native";
+import { useUser } from "@/hooks/useUser";
 
 const SOLDE = 15000;
 const IDENTIFIANT = "AF38X92ZP71Q5RNVB0EJ";
@@ -56,8 +61,87 @@ const TRANSACTIONS = [
 ];
 
 export default function HomeScreen() {
+  const { token } = useUser();
   const [tab, setTab] = useState("mobile");
+  const [showMobileModal, setShowMobileModal] = useState(false);
+  const [showBankModal, setShowBankModal] = useState(false);
   const router = useRouter();
+
+  // États pour le formulaire mobile money
+  const [mobileForm, setMobileForm] = useState({
+    provider: "",
+    phoneNumber: "",
+    accountName: ""
+  });
+
+  // États pour le formulaire bancaire
+  const [bankForm, setBankForm] = useState({
+    bankAccountNumber: "",
+    bankAccountType: "checking",
+    bankName: "",
+    bankBranch: "",
+    bankClearingCode: ""
+  });
+
+  const handleAddMobileMoney = () => {
+    if (
+      !mobileForm.provider ||
+      !mobileForm.phoneNumber ||
+      !mobileForm.accountName
+    ) {
+      Alert.alert("Erreur", "Veuillez remplir tous les champs");
+      return;
+    }
+
+    // Ici vous pouvez ajouter la logique pour sauvegarder la carte
+    Alert.alert("Succès", "Carte mobile money ajoutée avec succès");
+    setShowMobileModal(false);
+    setMobileForm({ provider: "", phoneNumber: "", accountName: "" });
+  };
+
+  const handleAddBankCard = async () => {
+    if (
+      !bankForm.bankAccountNumber ||
+      !bankForm.bankAccountType ||
+      !bankForm.bankName ||
+      !bankForm.bankBranch ||
+      !bankForm.bankClearingCode
+    ) {
+      Alert.alert("Erreur", "Veuillez remplir tous les champs");
+      return;
+    }
+    try {
+      const result = await bankService.createBankAccount(
+        bankForm as BankAccountData,
+        token
+      );
+
+      console.log(result);
+      if (result.success) {
+        Alert.alert("Succès", "Compte bancaire ajouté avec succès");
+        setShowBankModal(false);
+        setBankForm({
+          bankAccountNumber: "",
+          bankAccountType: "checking",
+          bankName: "",
+          bankBranch: "",
+          bankClearingCode: ""
+        });
+      } else {
+        Alert.alert(
+          "Erreur",
+          result.message || "Erreur lors de l'ajout du compte bancaire"
+        );
+      }
+    } catch (error: any) {
+      console.log("Erreur détaillée:", error);
+      Alert.alert(
+        "Erreur",
+        error.message ||
+          "Une erreur est survenue lors de l'ajout du compte bancaire"
+      );
+    }
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: "#f9f9f9" }}>
@@ -66,7 +150,7 @@ export default function HomeScreen() {
       <View style={styles.tabsContainer}>
         <TouchableOpacity
           style={[styles.tab, tab === "mobile" && styles.tabActive]}
-          onPress={() => setTab("mobile")}>
+          onPress={() => setShowMobileModal(true)}>
           <Text
             style={[styles.tabText, tab === "mobile" && styles.tabTextActive]}>
             Mobile Money
@@ -74,7 +158,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, tab === "bank" && styles.tabActive]}
-          onPress={() => setTab("bank")}>
+          onPress={() => setShowBankModal(true)}>
           <Text
             style={[styles.tabText, tab === "bank" && styles.tabTextActive]}>
             Compte Bancaire
@@ -121,7 +205,7 @@ export default function HomeScreen() {
             <TouchableOpacity
               key={i}
               style={styles.fonctionnalite}
-              onPress={() => f.route && router.push(f.route)}>
+              onPress={() => f.route && router.push(f.route as any)}>
               <View
                 style={[
                   styles.fonctionIcon,
@@ -188,6 +272,186 @@ export default function HomeScreen() {
       <TouchableOpacity style={styles.fab}>
         <Ionicons name="add" size={32} color="#fff" />
       </TouchableOpacity>
+
+      {/* Modal pour ajouter une carte mobile money */}
+      <Modal visible={showMobileModal} transparent animationType="fade">
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowMobileModal(false)}>
+          <Pressable
+            style={styles.modalContent}
+            onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                Ajouter une carte Mobile Money
+              </Text>
+              <TouchableOpacity onPress={() => setShowMobileModal(false)}>
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Opérateur</Text>
+              <View style={styles.providerContainer}>
+                {[
+                  "Orange Money",
+                  "MTN Mobile Money",
+                  "Moov Money",
+                  "Airtel Money"
+                ].map((provider) => (
+                  <TouchableOpacity
+                    key={provider}
+                    style={[
+                      styles.providerOption,
+                      mobileForm.provider === provider &&
+                        styles.providerOptionActive
+                    ]}
+                    onPress={() => setMobileForm({ ...mobileForm, provider })}>
+                    <Text
+                      style={[
+                        styles.providerText,
+                        mobileForm.provider === provider &&
+                          styles.providerTextActive
+                      ]}>
+                      {provider}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Numéro de téléphone</Text>
+              <TextInput
+                style={styles.formInput}
+                placeholder="Ex: 225 0701234567"
+                value={mobileForm.phoneNumber}
+                onChangeText={(text) =>
+                  setMobileForm({ ...mobileForm, phoneNumber: text })
+                }
+                keyboardType="phone-pad"
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Nom du titulaire</Text>
+              <TextInput
+                style={styles.formInput}
+                placeholder="Nom complet du titulaire"
+                value={mobileForm.accountName}
+                onChangeText={(text) =>
+                  setMobileForm({ ...mobileForm, accountName: text })
+                }
+              />
+            </View>
+
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={handleAddMobileMoney}>
+              <Text style={styles.modalButtonText}>Ajouter la carte</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Modal pour ajouter une carte bancaire */}
+      <Modal visible={showBankModal} transparent animationType="fade">
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowBankModal(false)}>
+          <Pressable
+            style={styles.modalContent}
+            onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Ajouter un compte bancaire</Text>
+              <TouchableOpacity onPress={() => setShowBankModal(false)}>
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Nom de la banque</Text>
+              <TextInput
+                style={styles.formInput}
+                placeholder="Ex: Ecobank, SGBCI, etc."
+                value={bankForm.bankName}
+                onChangeText={(text) =>
+                  setBankForm({ ...bankForm, bankName: text })
+                }
+              />
+            </View>
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Numéro de compte</Text>
+              <TextInput
+                style={styles.formInput}
+                placeholder="Numéro de compte bancaire"
+                value={bankForm.bankAccountNumber}
+                onChangeText={(text) =>
+                  setBankForm({ ...bankForm, bankAccountNumber: text })
+                }
+                keyboardType="numeric"
+              />
+            </View>
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Type de compte</Text>
+              <View style={styles.accountTypeContainer}>
+                {[
+                  { label: "Compte Courant", value: "checking" },
+                  { label: "Compte Épargne", value: "savings" }
+                ].map((type) => (
+                  <TouchableOpacity
+                    key={type.value}
+                    style={[
+                      styles.accountTypeOption,
+                      bankForm.bankAccountType === type.value &&
+                        styles.accountTypeOptionActive
+                    ]}
+                    onPress={() =>
+                      setBankForm({ ...bankForm, bankAccountType: type.value })
+                    }>
+                    <Text
+                      style={[
+                        styles.accountTypeText,
+                        bankForm.bankAccountType === type.value &&
+                          styles.accountTypeTextActive
+                      ]}>
+                      {type.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Agence bancaire</Text>
+              <TextInput
+                style={styles.formInput}
+                placeholder="Nom de l'agence ou succursale"
+                value={bankForm.bankBranch}
+                onChangeText={(text) =>
+                  setBankForm({ ...bankForm, bankBranch: text })
+                }
+              />
+            </View>
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Code de compensation</Text>
+              <TextInput
+                style={styles.formInput}
+                placeholder="Code de compensation (Clearing Code)"
+                value={bankForm.bankClearingCode}
+                onChangeText={(text) =>
+                  setBankForm({ ...bankForm, bankClearingCode: text })
+                }
+              />
+            </View>
+
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={handleAddBankCard}>
+              <Text style={styles.modalButtonText}>Ajouter le compte</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -397,5 +661,113 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.18,
     shadowRadius: 6,
     elevation: 6
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 24,
+    width: "100%",
+    maxWidth: 400,
+    maxHeight: "80%"
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#222"
+  },
+  formGroup: {
+    marginBottom: 16
+  },
+  formLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 8
+  },
+  formInput: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    backgroundColor: "#f9f9f9"
+  },
+  providerContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  providerOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    backgroundColor: "#f9f9f9"
+  },
+  providerOptionActive: {
+    backgroundColor: "#0a7e3a",
+    borderColor: "#0a7e3a"
+  },
+  providerText: {
+    fontSize: 14,
+    color: "#666"
+  },
+  providerTextActive: {
+    color: "#fff",
+    fontWeight: "600"
+  },
+  accountTypeContainer: {
+    flexDirection: "row",
+    gap: 12
+  },
+  accountTypeOption: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    backgroundColor: "#f9f9f9",
+    alignItems: "center"
+  },
+  accountTypeOptionActive: {
+    backgroundColor: "#0a7e3a",
+    borderColor: "#0a7e3a"
+  },
+  accountTypeText: {
+    fontSize: 14,
+    color: "#666",
+    fontWeight: "500"
+  },
+  accountTypeTextActive: {
+    color: "#fff",
+    fontWeight: "600"
+  },
+  modalButton: {
+    backgroundColor: "#0a7e3a",
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginTop: 8
+  },
+  modalButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold"
   }
 });
