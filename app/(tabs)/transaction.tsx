@@ -53,6 +53,7 @@ export default function EnvoyerScreen() {
       setLoadingDest(true);
       try {
         const data = await userService.getUserByPublicKey(val, token);
+        console.log("data", data?.utilisateur.email);  
         setDestinataire(data);
       } catch (e) {
         setDestinataire(null);
@@ -198,20 +199,28 @@ export default function EnvoyerScreen() {
                 <Ionicons name="person" size={28} color="#888" />
               </View>
               <View style={{ marginLeft: 14 }}>
-                <Text style={styles.destNomLarge}>{destinataire.nom}</Text>
+                <Text style={styles.destNomLarge}>
+                  {destinataire?.utilisateur.firstName}{" "}
+                  {destinataire?.utilisateur.lastName}
+                </Text>
                 <Text style={styles.destPaysLarge}>
-                  {destinataire.pays} • {destinataire.devise}
+                  {destinataire?.utilisateur.pays} • N-
+                  {destinataire?.utilisateur.numeroCompte}
                 </Text>
               </View>
             </View>
             <View style={styles.destInfoBlock}>
               <View style={styles.destInfoRow}>
-                <Text style={styles.destInfoLabel}>Wallet</Text>
-                <Text style={styles.destInfoValue}>{destinataire.wallet}</Text>
+                <Text style={styles.destInfoLabel}>Numéro de compte</Text>
+                <Text style={styles.destInfoValue}>
+                  {destinataire?.utilisateur.numeroCompte}
+                </Text>
               </View>
               <View style={styles.destInfoRow}>
                 <Text style={styles.destInfoLabel}>Email</Text>
-                <Text style={styles.destInfoValue}>{destinataire.email}</Text>
+                <Text style={styles.destInfoValue}>
+                  {destinataire?.utilisateur.email}
+                </Text>
               </View>
             </View>
           </View>
