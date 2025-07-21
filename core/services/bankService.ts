@@ -12,7 +12,7 @@ export interface BankAccountData {
 export const bankService = {
   async createBankAccount(data: BankAccountData, token?: string | null) {
     const response = await fetch(
-      "http://192.168.4.30:3000/api/users/bank-details",
+      "http://192.168.43.201:3000/api/users/bank-details",
       {
         method: "POST",
         headers: {

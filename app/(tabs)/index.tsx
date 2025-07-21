@@ -2,6 +2,7 @@
 
 import Header from "@/components/Header";
 import { BankAccountData, bankService } from "@/core/services/bankService";
+import { useUser } from "@/hooks/useUser";
 import { FontAwesome5, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
@@ -16,7 +17,6 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
-import { useUser } from "@/hooks/useUser";
 
 const SOLDE = 15000;
 const IDENTIFIANT = "AF38X92ZP71Q5RNVB0EJ";
@@ -25,12 +25,11 @@ const FONCTIONNALITES = [
   {
     icon: "send",
     label: "Envoyer",
-    color: "#0a7e3a",
-    route: "/envoyer"
+    color: "#0a7e3a"
   },
   { icon: "download", label: "Recevoir", color: "#f7a600" },
   { icon: "credit-card", label: "Paiements", color: "#7c3aed" },
-  { icon: "history", label: "Historique", color: "#059669", route: "/history" }
+  { icon: "history", label: "Historique", color: "#059669" }
 ];
 
 const TRANSACTIONS = [
@@ -183,14 +182,15 @@ export default function HomeScreen() {
               style={{ marginRight: 10 }}
             />
             <Text style={{ fontWeight: "bold", fontSize: 16 }}>
-              Orange Money
+              Compte Bancaire
             </Text>
             <View style={styles.badgeActif}>
               <Text style={styles.badgeActifText}>Actif</Text>
             </View>
           </View>
           <Text style={{ color: "#888", fontSize: 13, marginBottom: 2 }}>
-            **** **** 5678
+            {/* **** **** 5678  */}
+            {user?.numeroCompte}
           </Text>
           <Text style={styles.soldeLabel}>Solde disponible</Text>
           <Text style={styles.soldeMontant}>{SOLDE.toLocaleString()} FCFA</Text>
@@ -675,7 +675,7 @@ const styles = StyleSheet.create({
     padding: 24,
     width: "100%",
     maxWidth: 400,
-    maxHeight: "80%"
+    maxHeight: "90%"
   },
   modalHeader: {
     flexDirection: "row",

@@ -1,9 +1,13 @@
 /** @format */
 
 import Header from "@/components/Header";
+import { transactionService } from "@/core/services/transactionService";
+import { userService } from "@/core/services/userService";
+import { useUser } from "@/hooks/useUser";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -21,11 +25,15 @@ const DESTINATAIRE = {
 };
 
 export default function EnvoyerScreen() {
+  const { token } = useUser();
   const [methode, setMethode] = useState("mobile");
-  const [cle, setCle] = useState("AF38X92ZP71Q5RNVB0EJ");
+  const [cle, setCle] = useState("");
   const [montant, setMontant] = useState("5000");
   const frais = 250;
   const total = Number(montant || 0) + frais;
+  const [destinataire, setDestinataire] = useState<any>(null);
+  const [loadingDest, setLoadingDest] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Clavier numérique custom
   const handleKey = (val: string) => {
@@ -35,6 +43,74 @@ export default function EnvoyerScreen() {
       return;
     } else {
       setMontant((montant + val).replace(/^0+/, ""));
+    }
+  };
+
+  const handleCleChange = async (val: string) => {
+    setCle(val);
+    if (val.length >= 6) {
+      // adapte la longueur si besoin
+      setLoadingDest(true);
+      try {
+        const data = await userService.getUserByPublicKey(val, token);
+        setDestinataire(data);
+      } catch (e) {
+        setDestinataire(null);
+      }
+      setLoadingDest(false);
+    } else {
+      setDestinataire(null);
+    }
+  };
+
+  const handleEnvoyer = async () => {
+    if (!cle || !montant || !destinataire) {
+      Alert.alert(
+        "Erreur",
+        "Veuillez remplir tous les champs et sélectionner un destinataire"
+      );
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Première requête : Dépôt bancaire Stellar
+      await transactionService.depotBancaireStellar(
+        Number(montant),
+        token || undefined
+      );
+
+      // Deuxième requête : Envoi XLM
+      await transactionService.envoyerXLM(
+        cle,
+        Number(montant),
+        token || undefined
+      );
+
+      // Troisième requête : Retrait Stellar bancaire
+      await transactionService.retraitStellarBancaire(
+        Number(montant),
+        token || undefined
+      );
+
+      Alert.alert("Succès", "Transaction effectuée avec succès", [
+        {
+          text: "OK",
+          onPress: () => {
+            // Reset du formulaire
+            setCle("");
+            setMontant("0");
+            setDestinataire(null);
+          }
+        }
+      ]);
+    } catch (error: any) {
+      Alert.alert(
+        "Erreur",
+        error.message || "Une erreur est survenue lors de la transaction"
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -91,7 +167,7 @@ export default function EnvoyerScreen() {
             <TextInput
               style={styles.inputCle}
               value={cle}
-              onChangeText={setCle}
+              onChangeText={handleCleChange}
               placeholder="Clé publique..."
               autoCapitalize="characters"
               selectTextOnFocus
@@ -112,28 +188,38 @@ export default function EnvoyerScreen() {
           </View>
         </View>
         {/* Informations du destinataire */}
-        <View style={styles.cardDestinataire}>
-          <Text style={styles.labelDest}>Informations du destinataire</Text>
-          <View style={styles.destHeader}>
-            <View style={styles.avatarLarge}>
-              <Ionicons name="person" size={28} color="#888" />
+        {loadingDest ? (
+          <Text>Recherche du destinataire...</Text>
+        ) : destinataire ? (
+          <View style={styles.cardDestinataire}>
+            <Text style={styles.labelDest}>Informations du destinataire</Text>
+            <View style={styles.destHeader}>
+              <View style={styles.avatarLarge}>
+                <Ionicons name="person" size={28} color="#888" />
+              </View>
+              <View style={{ marginLeft: 14 }}>
+                <Text style={styles.destNomLarge}>{destinataire.nom}</Text>
+                <Text style={styles.destPaysLarge}>
+                  {destinataire.pays} • {destinataire.devise}
+                </Text>
+              </View>
             </View>
-            <View style={{ marginLeft: 14 }}>
-              <Text style={styles.destNomLarge}>Thomas Dubois</Text>
-              <Text style={styles.destPaysLarge}>Côte d{"'"}Ivoire • FCFA</Text>
+            <View style={styles.destInfoBlock}>
+              <View style={styles.destInfoRow}>
+                <Text style={styles.destInfoLabel}>Wallet</Text>
+                <Text style={styles.destInfoValue}>{destinataire.wallet}</Text>
+              </View>
+              <View style={styles.destInfoRow}>
+                <Text style={styles.destInfoLabel}>Email</Text>
+                <Text style={styles.destInfoValue}>{destinataire.email}</Text>
+              </View>
             </View>
           </View>
-          <View style={styles.destInfoBlock}>
-            <View style={styles.destInfoRow}>
-              <Text style={styles.destInfoLabel}>Orange Money</Text>
-              <Text style={styles.destInfoValue}>**** **** 5678</Text>
-            </View>
-            <View style={styles.destInfoRow}>
-              <Text style={styles.destInfoLabel}>Email</Text>
-              <Text style={styles.destInfoValue}>thomas.dubois@email.com</Text>
-            </View>
-          </View>
-        </View>
+        ) : cle.length > 0 ? (
+          <Text style={{ color: "red" }}>
+            Aucun utilisateur trouvé pour cette clé
+          </Text>
+        ) : null}
         {/* Montant à envoyer */}
         <View style={styles.cardMontant}>
           <Text style={styles.labelMontant}>Montant à envoyer</Text>
@@ -179,8 +265,13 @@ export default function EnvoyerScreen() {
           Transaction sécurisée et cryptée. Temps estimé: 30 secondes
         </Text>
         {/* Bouton envoyer */}
-        <TouchableOpacity style={styles.envoyerBtn2}>
-          <Text style={styles.envoyerBtnText2}>Envoyer</Text>
+        <TouchableOpacity
+          style={[styles.envoyerBtn2, isLoading && { opacity: 0.7 }]}
+          onPress={handleEnvoyer}
+          disabled={isLoading}>
+          <Text style={styles.envoyerBtnText2}>
+            {isLoading ? "Envoi en cours..." : "Envoyer"}
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </View>

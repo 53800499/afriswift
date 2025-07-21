@@ -29,7 +29,7 @@ export const authService = {
   async register(userData: RegisterData): Promise<RegisterResponse> {
     try {
       // URL de votre API backend - à modifier selon votre configuration
-      const apiUrl = "http://192.168.4.30:3000/api/users/inscription";
+      const apiUrl = "http://192.168.43.201:3000/api/users/inscription";
       
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -68,7 +68,7 @@ export const authService = {
   async login(loginData: LoginData): Promise<LoginResponse> {
     try {
       // URL de votre API backend - à modifier selon votre configuration
-      const apiUrl = 'http://192.168.4.30:3000/api/users/connexion';
+      const apiUrl = "http://192.168.43.201:3000/api/users/connexion";
       
       const response = await fetch(apiUrl, {
         method: 'POST',
